@@ -1,0 +1,7 @@
+[project:dummy]
+; build environment
+PROJECT_BUILD_CMD="env > /tmp/dummy.build"
+; start environment
+PROJECT_START_CMD="env > /tmp/dummy.start"
+; stop environment
+PROJECT_STOP_CMD="env > /tmp/dummy.stop"

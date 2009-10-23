@@ -1,0 +1,214 @@
+diff -rup ../2/subversion-1.6.5/subversion/include/svn_wc.h ./subversion/include/svn_wc.h
+--- ../2/subversion-1.6.5/subversion/include/svn_wc.h	2009-02-16 20:35:25.000000000 +0000
++++ ./subversion/include/svn_wc.h	2009-10-16 00:35:35.000000000 +0000
+@@ -666,6 +666,37 @@ svn_wc_external_item_dup(const svn_wc_ex
+  * The format of @a desc is the same as for values of the directory
+  * property @c SVN_PROP_EXTERNALS, which see.
+  *
++ * If parent_revision is specified, this is used for handling of
++ * any externals with -r BASE.  That is, such externals will be
++ * checked out with the same revision as the parent directory.
++ *
++ * Allocate the table, keys, and values in @a pool.
++ *
++ * Use @a parent_directory only in constructing error strings.
++ *
++ * @since New in 1.6.
++ */
++svn_error_t *
++svn_wc_parse_externals_description4(apr_array_header_t **externals_p,
++                                    const char *parent_directory,
++                                    const char *desc,
++                                    svn_boolean_t canonicalize_url,
++                                    svn_revnum_t parent_revision,
++                                    apr_pool_t *pool);
++/**
++ * If @a externals_p is non-NULL, set @a *externals_p to an array of
++ * @c svn_wc_external_item2_t * objects based on @a desc.  The @a url
++ * member of the objects will be canonicalized if @a canonicalize_url
++ * is @c TRUE.
++ *
++ * If the format of @a desc is invalid, don't touch @a *externals_p and
++ * return @c SVN_ERR_CLIENT_INVALID_EXTERNALS_DESCRIPTION.  Thus, if
++ * you just want to check the validity of an externals description,
++ * and don't care about the parsed result, pass NULL for @a externals_p.
++ *
++ * The format of @a desc is the same as for values of the directory
++ * property @c SVN_PROP_EXTERNALS, which see.
++ *
+  * Allocate the table, keys, and values in @a pool.
+  *
+  * Use @a parent_directory only in constructing error strings.
+diff -rup ../2/subversion-1.6.5/subversion/libsvn_client/externals.c ./subversion/libsvn_client/externals.c
+--- ../2/subversion-1.6.5/subversion/libsvn_client/externals.c	2009-02-16 20:35:25.000000000 +0000
++++ ./subversion/libsvn_client/externals.c	2009-10-16 00:35:35.000000000 +0000
+@@ -1057,6 +1057,18 @@ struct handle_externals_desc_change_bato
+   apr_pool_t *pool;
+ };
+
++static svn_error_t*
++svn_base_info_cb(void *baton,
++            const char *path,
++            const svn_info_t *info,
++            apr_pool_t *pool)
++{
++  svn_revnum_t *parent_rev = baton;
++  *parent_rev = info->rev;
++
++  return SVN_NO_ERROR;
++}
++
+
+ /* This implements the 'svn_hash_diff_func_t' interface.
+    BATON is of type 'struct handle_externals_desc_change_baton *'.
+@@ -1076,6 +1088,7 @@ handle_externals_desc_change(const void
+   svn_wc_external_item2_t *item;
+   const char *ambient_depth_w;
+   svn_depth_t ambient_depth;
++  svn_revnum_t parent_rev;
+
+   if (cb->is_export)
+     SVN_ERR_ASSERT(!cb->adm_access);
+@@ -1109,15 +1122,18 @@ handle_externals_desc_change(const void
+           && cb->requested_depth < svn_depth_infinity))
+     return SVN_NO_ERROR;
+
++  /* Get the revision of the parent dir */
++  SVN_ERR(svn_client_info2(key, svn_opt_revision_unspecified, svn_opt_revision_unspecified, &svn_base_info_cb, &parent_rev, svn_depth_empty, NULL, cb->ctx, cb->pool));
++
+   if ((old_desc_text = apr_hash_get(cb->externals_old, key, klen)))
+-    SVN_ERR(svn_wc_parse_externals_description3(&old_desc, key, old_desc_text,
+-                                                FALSE, cb->pool));
++    SVN_ERR(svn_wc_parse_externals_description4(&old_desc, key, old_desc_text,
++                                                FALSE, parent_rev, cb->pool));
+   else
+     old_desc = NULL;
+
+   if ((new_desc_text = apr_hash_get(cb->externals_new, key, klen)))
+-    SVN_ERR(svn_wc_parse_externals_description3(&new_desc, key, new_desc_text,
+-                                                FALSE, cb->pool));
++    SVN_ERR(svn_wc_parse_externals_description4(&new_desc, key, new_desc_text,
++                                                FALSE, parent_rev, cb->pool));
+   else
+     new_desc = NULL;
+
+@@ -1316,8 +1332,8 @@ svn_client__do_external_status(svn_wc_tr
+
+       /* Parse the svn:externals property value.  This results in a
+          hash mapping subdirectories to externals structures. */
+-      SVN_ERR(svn_wc_parse_externals_description3(&exts, path, propval,
+-                                                  FALSE, subpool));
++      SVN_ERR(svn_wc_parse_externals_description4(&exts, path, propval,
++                                                  FALSE, -1, subpool));
+
+       /* Make a sub-pool of SUBPOOL. */
+       iterpool = svn_pool_create(subpool);
+diff -rup ../2/subversion-1.6.5/subversion/libsvn_wc/props.c ./subversion/libsvn_wc/props.c
+--- ../2/subversion-1.6.5/subversion/libsvn_wc/props.c	2009-04-07 12:48:12.000000000 +0000
++++ ./subversion/libsvn_wc/props.c	2009-10-16 00:38:53.000000000 +0000
+@@ -2878,6 +2878,7 @@ find_and_remove_externals_revision(int *
+                                    svn_wc_external_item2_t *item,
+                                    const char *parent_directory_display,
+                                    const char *line,
++                                   svn_revnum_t parent_rev,
+                                    apr_pool_t *pool)
+ {
+   int i;
+@@ -2890,11 +2891,11 @@ find_and_remove_externals_revision(int *
+         {
+           svn_opt_revision_t end_revision = { svn_opt_revision_unspecified };
+           const char *digits_ptr;
++          const char *end_ptr;
+           int shift_count;
+           int j;
+
+           *rev_idx = i;
+-
+           if (token[2] == '\0')
+             {
+               /* There must be a total of four elements in the line if
+@@ -2916,10 +2917,22 @@ find_and_remove_externals_revision(int *
+               digits_ptr = token+2;
+             }
+
+-          if (svn_opt_parse_revision(&item->revision,
+-                                     &end_revision,
+-                                     digits_ptr, pool) != 0)
+-            goto parse_error;
++          /* Special handling for -r BASE or -rBASE */
++          #define SVN_BASE_REV "BASE"
++          if (digits_ptr[strlen(SVN_BASE_REV)] == '\0'
++              && strcmp(digits_ptr, SVN_BASE_REV) == 0) {
++              if (parent_rev == -1)
++                goto parse_error;
++              item->revision.kind = svn_opt_revision_number;
++              item->revision.value.number = parent_rev;
++              end_ptr = digits_ptr + strlen(SVN_BASE_REV);
++
++          } else {
++            if (svn_opt_parse_revision(&item->revision,
++                                       &end_revision,
++                                       digits_ptr, pool) != 0)
++                goto parse_error;
++          }
+           /* We want a single revision, not a range. */
+           if (end_revision.kind != svn_opt_revision_unspecified)
+             goto parse_error;
+@@ -2953,12 +2966,12 @@ find_and_remove_externals_revision(int *
+      parent_directory_display,
+      line);
+ }
+-
+ svn_error_t *
+-svn_wc_parse_externals_description3(apr_array_header_t **externals_p,
++svn_wc_parse_externals_description4(apr_array_header_t **externals_p,
+                                     const char *parent_directory,
+                                     const char *desc,
+                                     svn_boolean_t canonicalize_url,
++                                    svn_revnum_t parent_revision,
+                                     apr_pool_t *pool)
+ {
+   apr_array_header_t *lines = svn_cstring_split(desc, "\n\r", TRUE, pool);
+@@ -3001,7 +3014,13 @@ svn_wc_parse_externals_description3(apr_
+
+       SVN_ERR(svn_wc_external_item_create
+               ((const svn_wc_external_item2_t **) &item, pool));
+-      item->revision.kind = svn_opt_revision_unspecified;
++      /* For Metaweb purposes, set the default behaviour to -rBASE */
++      if (parent_revision == -1) {
++          item->revision.kind = svn_opt_revision_unspecified;
++      } else {
++          item->revision.kind = svn_opt_revision_number;
++          item->revision.value.number = parent_revision;
++      }
+       item->peg_revision.kind = svn_opt_revision_unspecified;
+
+       /*
+@@ -3038,7 +3057,7 @@ svn_wc_parse_externals_description3(apr_
+                                                  (const char **)line_parts,
+                                                  num_line_parts, item,
+                                                  parent_directory_display,
+-                                                 line, pool));
++                                                 line, parent_revision, pool));
+
+       token0 = line_parts[0];
+       token1 = line_parts[1];
+@@ -3120,6 +3139,18 @@ svn_wc_parse_externals_description3(apr_
+   return SVN_NO_ERROR;
+ }
+
++svn_error_t *
++svn_wc_parse_externals_description3(apr_array_header_t **externals_p,
++                                     const char *parent_directory,
++                                     const char *desc,
++                                     svn_boolean_t canonicalize_url,
++                                     apr_pool_t *pool)
++{
++    return svn_wc_parse_externals_description4(externals_p,
++        parent_directory, desc, canonicalize_url, -1, pool);
++}
++
++
+ svn_boolean_t
+ svn_wc__has_special_property(apr_hash_t *props)
+ {

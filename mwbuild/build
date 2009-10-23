@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# Normalize the current directory
+cd `dirname $0`
+
+cd ../src && make

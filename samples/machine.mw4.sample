@@ -1,0 +1,9 @@
+; Very basic machine configuration
+; to run qbert
+
+[project:qbert]
+PROJECT_SVN="qbert/trunk"
+
+; Matches any machine.
+[machine:*]
+PROJECTS="qbert"
