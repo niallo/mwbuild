@@ -34,8 +34,13 @@
 #include "cl.h"
 
 /* At least Linux does not have setproctitle() in libc */
-#ifdef __Linux__
+#ifdef __linux__
 # undef HAVE_SETPROCTITLE
+#endif
+
+/* OpenBSD does */
+#ifdef __OpenBSD__
+# define HAVE_SETPROCTITLE 1
 #endif
 
 #ifndef HAVE_SETPROCTITLE
