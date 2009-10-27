@@ -43,6 +43,11 @@
 # define HAVE_SETPROCTITLE 1
 #endif
 
+/* FreeBSD does */
+#ifdef __FreeBSD__
+# define HAVE_SETPROCTITLE 1
+#endif
+
 #ifndef HAVE_SETPROCTITLE
 
 #include <stdarg.h>
