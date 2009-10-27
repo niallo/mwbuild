@@ -220,7 +220,7 @@ udp_server(const char *multicast_addr, int port)
       exit(1);
     }
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__OpenBSD__)
     /* This seems to be required for proper operation of a multicast
      * UDP server on Mac OS, but not on Linux.  */
     if (setsockopt(server->sock, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one))) {
