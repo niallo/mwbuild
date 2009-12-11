@@ -169,8 +169,7 @@ mw_fork_and_wait(const char *cmd,
 	waitpid(pid, &status, 0);
 	if (status != 0) {
 		syslog(LOG_ERR,
-		    "mwbuild: %s failed for %s", "build",
-		       mw_get_config_var(root, PROJECT_SVN));
+		    "mwbuild: %s failed for %s", "build", project);
 		if (WIFEXITED(status)) {
 			fprintf(stderr, "%s %s failed with status %d\n",
 				project, phase, WEXITSTATUS(status));
@@ -516,8 +515,7 @@ mw_conf_list_start(struct mw_conf_head *root,
 			"project %s is already running",
 			project);
 		syslog(LOG_ERR,
-		    "mwbuild: %s failed for %s", "start",
-		    mw_get_config_var(root, PROJECT_SVN));
+		    "mwbuild: %s failed for %s", "start", project);
 		return;
 	}
 	/* Pre-start commands are executed before start, and we wait
@@ -532,8 +530,7 @@ mw_conf_list_start(struct mw_conf_head *root,
 				"project %s pre-start command failed. Exiting",
 				project);
 			syslog(LOG_ERR,
-				"mwbuild: project %s pre-start command failed for %s. Exitng.",
-				project, mw_get_config_var(root, PROJECT_SVN));
+				"mwbuild: project %s pre-start command failed. Exitng.", project);
 			exit(1);
 		}
 	}
@@ -657,8 +654,7 @@ mw_conf_list_start(struct mw_conf_head *root,
 		    "nanny %s: announced HTTP port to multicast group",
 		    project);
 		syslog(LOG_INFO,
-		    "mwbuild: %s succeeded for %s", "start",
-		    mw_get_config_var(root, PROJECT_SVN));
+		    "mwbuild: %s succeeded for %s", "start", project);
 
 		/* Now that we're really running, close up stdio. */
 		/* By putting this off, we retain the ability to print
@@ -712,8 +708,7 @@ mw_conf_list_start(struct mw_conf_head *root,
 		_exit(0);
 err:
 		syslog(LOG_ERR,
-		    "mwbuild: %s failed for %s", "start",
-		    mw_get_config_var(root, PROJECT_SVN));
+		    "mwbuild: %s failed for %s", "start", project);
 		_exit(1);
 	} else {
 		/* In the parent. */

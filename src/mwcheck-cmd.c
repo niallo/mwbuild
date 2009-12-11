@@ -204,8 +204,7 @@ mw_conf_list_check(struct mw_conf_head *root,
 	}
 	if (status != 0) {
 		syslog(LOG_ERR,
-		    "mwbuild: %s failed for %s", "check",
-		       mw_get_config_var(root, PROJECT_SVN));
+		    "mwbuild: %s failed for %s", "check", project);
 		if (WIFEXITED(status)) {
 			fprintf(stderr, "%s check failed with status %d\n",
 				project, WEXITSTATUS(status));
@@ -225,8 +224,7 @@ mw_conf_list_check(struct mw_conf_head *root,
 	}
 
 	syslog(LOG_INFO,
-	       "mwbuild: %s succeeded for %s", "check",
-	       mw_get_config_var(root, PROJECT_SVN));
+	       "mwbuild: %s succeeded for %s", "check", project);
 }
 
 /*

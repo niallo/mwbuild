@@ -120,16 +120,14 @@ mw_conf_list_stop(struct mw_conf_head *root,
 	printf("Stopped project '%s' (nanny PID: %d)\n", project, pid);
 	mw_log(logfp, "stopped %s (PID: %d)", project, pid);
 	syslog(LOG_INFO,
-	    "mwbuild: %s succeeded for %s", "stop",
-	    mw_get_config_var(root, PROJECT_SVN));
+	    "mwbuild: %s succeeded for %s", "stop", project);
 
 	/* unlink the pid */
 	(void)  unlink(buf);
 	return;
 err:
 	syslog(LOG_ERR,
-	    "mwbuild: %s failed for %s", "stop",
-	    mw_get_config_var(root, PROJECT_SVN));
+	    "mwbuild: %s failed for %s", "stop", project);
 }
 
 /*

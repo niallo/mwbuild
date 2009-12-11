@@ -62,6 +62,7 @@ static char *mw_get_project_shortname(const char *);
 static struct conf_list_entry *mw_get_machine_node(struct mw_conf_head *);
 static void mw_config_add_default(struct mw_conf_head *, char *, const char *);
 static char *mw_realpath(const char *);
+static void mw_overwrite_conflist(struct mw_conf_head *, struct conf_node *);
 
 extern char *pretendhostname;
 
@@ -892,6 +893,61 @@ mw_insert_conflist(struct mw_conf_head *myconf, struct conf_node *node, const ch
 			found = 1;
 			break;
 		}
+		/* if project specified, and titles do not match, never overwrite */
+		if (project != NULL
+		    && node->title != NULL
+		    && var->conf->title != NULL
+		    && strcmp(node->key, var->conf->key) == 0
+		    && strcmp(node->title, var->conf->title) != 0) {
+			continue;
+		}
+		/* otherwise, overwrite */
+		if (strcmp(node->key, var->conf->key) == 0) {
+			found = 1;
+			break;
+		}
+	}
+	new = mw_conf_list_entry_create(node);
+	if (found) {
+		TAILQ_INSERT_BEFORE(var, new, conf_node_list);
+		TAILQ_REMOVE(myconf, var, conf_node_list);
+		free(var);
+		var = NULL;
+	} else {
+		TAILQ_INSERT_TAIL(myconf, new, conf_node_list);
+	}
+}
+
+/*
+ * mw_overwrite_conflist()
+ *
+ * Search the temporary config list for a node with the same key as <node>.
+ * If found, remove it from temporary config list before inserting <node>.
+ * Otherwise, just go ahead and insert it <node> in the temporary config
+ * list.
+ */
+void
+mw_overwrite_conflist(struct mw_conf_head *myconf, struct conf_node *node)
+{
+	struct conf_list_entry *var, *new, *nxt;
+	int found = 0;
+
+	/* Ignore values in machine sections which don't match our hostname */
+	if (node->title != NULL
+	    && strncmp(node->title, "machine", strlen("machine")) == 0
+	    && mw_node_hostname_match(node) != 0) {
+		return;
+	}
+
+	/* Search for an existing node with this key to override */
+	for (var = TAILQ_FIRST(myconf); var != TAILQ_END(myconf); var = nxt) {
+		nxt = TAILQ_NEXT(var, conf_node_list);
+		/* Skip nodes without keys nor values */
+		if (node->key == NULL && node->value == NULL)
+			continue;
+		if (var->conf->key == NULL && var->conf->value == NULL)
+			continue;
+		/* overwrite */
 		if (strcmp(node->key, var->conf->key) == 0) {
 			found = 1;
 			break;
@@ -919,10 +975,12 @@ mw_title_suffix_match(const char *title, const char *s)
 {
 	char *cpos;
 
-	if ((cpos = strchr(title, ':')) == NULL)
+	if ((cpos = strchr(title, ':')) == NULL) {
 		return (1);
-	if (strlen(cpos) < 2)
+	}
+	if (strlen(cpos) < 2) {
 		return (1);
+	}
 
 	return (strcmp(cpos + 1, s));
 }
@@ -1163,9 +1221,9 @@ mw_generate_project_settings(struct mw_conf_head *newconf,
 						   node->conf->title);
 		} else if (mw_node_match_prefix(node->conf, "project", NULL) == 0) {
 			/* Matching project sections get copied. */
-			if (mw_title_suffix_match(node->conf->title, project) == 0)
-				mw_insert_conflist(newconf, node->conf,
-						   node->conf->title);
+			if (mw_title_suffix_match(node->conf->title, project) == 0) {
+				mw_overwrite_conflist(newconf, node->conf);
+			}
 		} else
 			/* Unsupported section types get skipped. */
 			continue;

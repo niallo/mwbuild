@@ -143,11 +143,11 @@ mw_conf_list_configure(struct mw_conf_head *root,
 	free(project_name);
 	free(envp);
 	syslog(LOG_INFO,
-	    "mwbuild: %s succeeded for %s", "conf", mw_get_config_var(root, PROJECT_SVN));
+	    "mwbuild: %s succeeded for %s", "conf", project);
 	return;
 err:
 	syslog(LOG_ERR,
-	    "mwbuild: %s failed for %s", "conf", mw_get_config_var(root, PROJECT_SVN));
+	    "mwbuild: %s failed for %s", "conf", project);
 	exit(1);
 }
 

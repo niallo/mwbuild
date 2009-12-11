@@ -175,9 +175,6 @@ mw_conf_list_get(struct mw_conf_head *r, const char *project,
 			found = 1;
 			break;
 		}
-		if (node->conf->key != NULL) {
-			printf("key: %s val: %s\n", node->conf->key, node->conf->value);
-		}
 	}
 	/* We MUST have a PROJECT_SVN value for each project */
 	if (!found) {
