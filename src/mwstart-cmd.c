@@ -487,6 +487,7 @@ mw_conf_list_start(struct mw_conf_head *root,
 		   const char *project,
 		   struct callback_args *args)
 {
+	struct addrinfo hints, *res;
 	struct conf_list_entry *node;
 	struct sigaction sa;
 	struct timeval tv;
@@ -495,7 +496,8 @@ mw_conf_list_start(struct mw_conf_head *root,
 	struct cmd_group *groups;
 	char buf[256];
 	char *appdir, *datadir, *logdir, **envp, *cmdfile, *prestartcmd;
-	int devnullfd, logfd;
+	char *nanny_http_host, *nanny_http_port;
+	int devnullfd, error, logfd;
 	size_t i = 0;
 	pid_t pid;
 
@@ -505,7 +507,6 @@ mw_conf_list_start(struct mw_conf_head *root,
 		fprintf(stderr, "fdopen failure\n");
 		exit(1);
 	}
-
 
 	if (mw_project_running(root, project)) {
 		fprintf(stderr,
@@ -527,13 +528,17 @@ mw_conf_list_start(struct mw_conf_head *root,
 		    args->opt_state->verbose, logfd, logfp) != 0) {
 			mw_log(logfp, "project %s pre-start command failed. Exiting.");
 			fprintf(stderr,
-				"project %s pre-start command failed. Exiting",
+				"project %s pre-start command failed. Exiting\n",
 				project);
 			syslog(LOG_ERR,
 				"mwbuild: project %s pre-start command failed. Exitng.", project);
 			exit(1);
 		}
 	}
+	/* Check whether we are configured to run the nanny http server
+	 * on a specific host/port */
+	nanny_http_host = mw_get_config_var(root, "NANNY_HTTP_HOST");
+	nanny_http_port = mw_get_config_var(root, "NANNY_HTTP_PORT");
 
 	/* Fork and have the child execute the START_CMD script  */
 	printf("Starting project '%s'\n", project);
@@ -638,9 +643,31 @@ mw_conf_list_start(struct mw_conf_head *root,
 		/* Note: udp_announce() will use this unicast socket. */
 		udp_server_init(NULL, -1);
 		mw_log(logfp, "nanny %s: created UDP servers", project);
-		/* Create an HTTP server on an anonymous socket using
-		 * http_dispatcher. */
-		http_server_init(http_dispatcher);
+		/* run getaddrinfo() if necessary */
+		if (nanny_http_host != NULL
+		    || nanny_http_port != NULL) {
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = PF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			error = getaddrinfo(nanny_http_host, nanny_http_port,
+			    &hints, &res);
+			if (error != 0) {
+				mw_log(logfp, "project %s getaddrinfo() failure",
+				       project);
+				fprintf(stderr, "project %s getaddrinfo() failure\n",
+					project);
+				syslog(LOG_ERR, "project %s getaddrinfo() failure");
+				exit(1);
+			}
+		}
+		/* Create an HTTP server - if no host/port is provided,
+		 * use an anonymous socket. */
+		if (res != NULL) {
+			http_server_init(res->ai_addr, res->ai_addrlen,
+			    http_dispatcher);
+		} else {
+			http_server_init(NULL, 0, http_dispatcher);
+		}
 		mw_log(logfp, "nanny %s: created HTTP server", project);
 		setproctitle("nanny: %s HTTP_PORT: %d", project,
 		    nanny_globals.http_port);

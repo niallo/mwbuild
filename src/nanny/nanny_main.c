@@ -230,7 +230,7 @@ main(int argc, char **argv)
   /* Note: udp_announce() will use this unicast socket. */
   udp_server_init(NULL, -1);
   /* Create an HTTP server on an anonymous socket using http_dispatcher. */
-  http_server_init(http_dispatcher);
+  http_server_init(NULL, 0, http_dispatcher);
   /* Create a counter server listening on a dynamic Unix socket. */
   counter = nanny_counter_server_init(NULL);
 

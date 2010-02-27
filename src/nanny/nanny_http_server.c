@@ -388,17 +388,25 @@ http_server_accept(void *_server)
 /*
  * Register with the central dispatcher.
  */
-void http_server_init(void (*dispatcher)(struct http_request *))
+void http_server_init(const struct sockaddr *name,
+		      socklen_t namelen,
+		      void (*dispatcher)(struct http_request *))
 {
   struct http_server *server;
   struct sockaddr_in addr;
   socklen_t len = sizeof(addr);
 
-  server = malloc(sizeof(*server));
+  if ((server = malloc(sizeof(*server))) == NULL)
+    perror("malloc");
   memset(server, 0, sizeof(*server));
   server->dispatcher = dispatcher;
 
   server->sock = socket(AF_INET, SOCK_STREAM, 0);
+  /* if name is NULL, we listen on a random (assigned by kernel) address. */
+  if (name != NULL) {
+    if (bind(server->sock, name, namelen) == -1)
+      perror("bind");
+  }
   if (listen(server->sock, 128))
     perror("listen");
 

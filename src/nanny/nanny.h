@@ -97,7 +97,9 @@ struct http_request {
 /* Initialize the HTTP server. */
 /* The 'dispatcher' is handed the request and given an opportunity
  * to fill in header_processor and body_processor functions. */
-void http_server_init(void (*dispatcher)(struct http_request *));
+void http_server_init(const struct sockaddr *,
+		      socklen_t namelen,
+		      void (*dispatcher)(struct http_request *));
 
 /* Write response data back. */
 void http_printf(struct http_request *, const char *fmt, ...);
