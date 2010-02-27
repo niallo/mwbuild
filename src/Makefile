@@ -18,6 +18,8 @@ DARWIN_LINK_FLAGS=-L/opt/local/lib	\
 LINUX_LINK_FLAGS=-lapr-1 -laprutil-1 -lz -lpthread -ldl -lcrypt -lexpat -lsasl2 -lssl -lsqlite3
 OPENBSD_LINK_FLAGS=-L/usr/local/lib -lapr-1 -laprutil-1 -lz	\
 	-lpthread -lcrypto -lssl -lexpat -lintl -lsqlite3
+FREEBSD_LINK_FLAGS=-L/usr/local/lib -lapr-1 -laprutil-1 -lz	\
+	-lpthread -lcrypto -lssl -lexpat -lintl -lsqlite3 -lgssapi -lxml2
 
 CC?= cc
 CFLAGS+= -Wall
@@ -136,6 +138,7 @@ _linkflags:
 	if [ $$(uname) = "Darwin" ]; then echo ${DARWIN_LINK_FLAGS} > _linkflags; fi
 	if [ $$(uname) = "Linux" ]; then echo ${LINUX_LINK_FLAGS} > _linkflags; fi
 	if [ $$(uname) = "OpenBSD" ]; then echo ${OPENBSD_LINK_FLAGS} > _linkflags; fi
+	if [ $$(uname) = "FreeBSD" ]; then echo ${FREEBSD_LINK_FLAGS} > _linkflags; fi
 
 # Building the third-party libraries after they've been configured.
 ${STATIC_LIBS}: ../work/${SVN}/Makefile
