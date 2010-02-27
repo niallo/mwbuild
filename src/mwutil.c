@@ -88,6 +88,12 @@ mw_get_hostname(void)
 		fprintf(stderr, "mw_get_hostname: gethostname failure\n");
 		exit(1);
 	}
+	/* if the result of gethostname() contains a dot (.) use that,
+	since its likely the FQDN */
+	if (strchr(myhostname, '.') != NULL) {
+		hbuf = strdup(myhostname);
+		return (hbuf);
+	}
 	hbuf = xmalloc(NI_MAXHOST);
 	memset(hbuf, '\0', NI_MAXHOST);
 	memset(&hints, 0, sizeof(hints));
