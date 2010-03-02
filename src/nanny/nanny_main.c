@@ -52,7 +52,6 @@ default_http_page(struct http_request *request)
   http_printf(request, "<li><a href=\"/status/\">Children</a><br/>\n");
   http_printf(request, "<li><a href=\"/environment\">Environment</a><br/>\n");
   http_printf(request, "</ul>\n");
-  http_printf(request, "<p>TODO: links to ganglia, other nannies on this machine, other machines in local cluster</p>\n");
   http_printf(request, "</body>\n");
   http_printf(request, "</HTML>\n");
   return (0);
