@@ -665,7 +665,6 @@ mw_conf_list_start(struct mw_conf_head *root,
 		if (res != NULL) {
 			http_server_init(res->ai_addr, res->ai_addrlen,
 			    http_dispatcher);
-			freeaddrinfo(res);
 		} else {
 			http_server_init(NULL, 0, http_dispatcher);
 		}
